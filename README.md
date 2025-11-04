@@ -1,9 +1,7 @@
 # headup.nvim
 
 <p align="center">
-
 *Automatically updates file metadata on save.*
-
 </p>
 
 ## Demo
