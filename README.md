@@ -8,7 +8,7 @@
 
 ## Demo
 
-https://github.com/Fro-Q/headup.nvim/raw/main/assets/headup_demo.mp4
+https://github.com/user-attachments/assets/ace2c601-c1ae-4109-b5f5-b105d9210bb4
 
 ## Features
 
