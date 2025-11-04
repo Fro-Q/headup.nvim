@@ -2,30 +2,53 @@
 -- File name: utils.lua
 -- Author: Fro-Q
 -- Created: 2025-11-03 02:10:37
--- Last modified: 2025-11-03 09:37:26
+-- Last modified: 2025-11-04 02:27:00
 -- ------
 -- headup.nvim utility functions
 --]]
 
----@mod headup.utils Utilities for headup.nvim
---- Helpers for patterns, sizes, hashing, and validation.
-
 ---@diagnostic disable: undefined-global
-require("headup.types")
+
+---
+--- Those functions are internal helpers for headup.nvim. In most cases,
+--- you won't need to interact with them directly. But who knows?
+---
+---@tag Headup.utils
+---@toc_entry Utility functions
 local Utils = {}
 
--- Valid content types
-local VALID_CONTENTS = {
-  "current_time",
-  "file_size",
-  "line_count",
-  "file_name",
-  "file_path",
-  "file_path_abs",
+---
+--- Useable content types for |Headup.item|.content. If you want to add more
+--- content types, use |Func.register_generator|.
+---
+---@type string[]
+---@eval return MiniDoc.afterlines_to_code(MiniDoc.current.eval_section)
+---@toc_entry   Valid contents to used in `content` field
+Utils.valid_contents = {
+  "current_time", -- Current time with a specified format
+  "file_size", -- File size, auto-converted to appropriate unit
+  "line_count", -- Number of lines in the file
+  "file_name", -- Base filename of the buffer
+  "file_path", -- File path relative to current working directory
+  "file_path_abs", -- Absolute file path
 }
+--minidoc_afterlines_end
 
--- Common time format patterns and their corresponding strftime formats
-local TIME_FORMATS = {
+---
+--- Common time format patterns and their corresponding strftime formats. Used
+--- for detecting time format from existing timestamps when 'time_format' is
+--- set to "inherit".
+---
+--- Note ~
+---   - This one is so ugly. But I can't find a way to parse time formats
+---     properly in Lua. |HELP_WANTED|
+---   - Those area Lua patterns, not regex!
+---   - Tip is DON'T use "inherit" if you can set a specific format.
+---
+---@type table<string, string>
+---@eval return MiniDoc.afterlines_to_code(MiniDoc.current.eval_section)
+---@toc_entry   Time formats for `time_format: "inherit"`
+Utils.time_formats = {
   -- ISO formats
   ["%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d"] = "%Y-%m-%d %H:%M:%S",
   ["%d%d%d%d%-%d%d%-%d%d"] = "%Y-%m-%d",
@@ -35,13 +58,19 @@ local TIME_FORMATS = {
   ["%a, %d %b %d%d%d%d %d%d:%d%d:%d%d"] = "%a, %d %b %Y %H:%M:%S",
   -- Unix timestamp (numeric)
   ["^%d+$"] = "timestamp",
+  -- ISO 8601
+  ["%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d"] = "%Y-%m-%dT%H:%M:%S",
 }
 
---- Check if content type is valid
+---
+--- Check if content type is valid. Simply checks against |Utils.valid_contents|.
+---
 ---@param content string
+---
 ---@return boolean
+---@toc_entry   Validate content type
 Utils.is_valid_content = function(content)
-  for _, valid_type in ipairs(VALID_CONTENTS) do
+  for _, valid_type in ipairs(Utils.valid_contents) do
     if content == valid_type then
       return true
     end
@@ -49,12 +78,15 @@ Utils.is_valid_content = function(content)
   return false
 end
 
---- Simple hash function for content change detection
+---
+--- Simple hash function for content change detection.
+---
 ---@param content string
+---
 ---@return string
+---@toc_entry   Hash content
 Utils.hash_content = function(content)
   -- Use a simple multiplicative hash to avoid LuaJIT bitwise operator issues
-  -- (LuaJIT doesn't support the '<<' operator, which causes a syntax error).
   local hash = 0
   for i = 1, #content do
     local char = string.byte(content, i)
@@ -64,9 +96,14 @@ Utils.hash_content = function(content)
   return tostring(hash)
 end
 
+---
 --- Detect time format from existing time string
+---
 ---@param time_string string
----@return string|nil Format string or nil if not detected
+---
+---@return string|nil
+---     Format string in strftime format if detected, or nil.
+---@toc_entry   Detect time format from string
 Utils.detect_time_format = function(time_string)
   if not time_string or time_string == "" then
     return nil
@@ -76,26 +113,25 @@ Utils.detect_time_format = function(time_string)
   time_string = time_string:gsub("^%s*(.-)%s*$", "%1")
 
   -- Check against known patterns
-  for pattern, format in pairs(TIME_FORMATS) do
+  for pattern, format in pairs(Utils.time_formats) do
     if time_string:match(pattern) then
       return format
     end
-  end
-
-  -- Try to detect some common patterns manually
-  if time_string:match("%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d") then
-    return "%Y-%m-%dT%H:%M:%S" -- ISO 8601
-  elseif time_string:match("%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d%.%d+Z?") then
-    return "%Y-%m-%dT%H:%M:%S" -- ISO 8601 with milliseconds (approximate)
   end
 
   -- Default fallback
   return "%Y-%m-%d %H:%M:%S"
 end
 
---- Get file size for buffer
+---
+--- Get file size for current buffer.
+---
 ---@param bufnr number
----@return string File size as string with units
+---     Buffer number. 0 for current buffer.
+---
+---@return string
+---     File size as string with units.
+---@toc_entry   Get file size
 Utils.get_file_size = function(bufnr)
   local filename = vim.api.nvim_buf_get_name(bufnr)
 
@@ -126,18 +162,28 @@ Utils.get_file_size = function(bufnr)
   end
 end
 
---- Escape special pattern characters for Lua patterns
+---
+--- Escape special pattern characters for Lua patterns.
+---
 ---@param str string
+---
 ---@return string
+---@toc_entry   Escape Lua pattern special characters
 Utils.escape_pattern = function(str)
   -- Escape Lua pattern magic chars: ( ) . % + - * ? [ ] ^ $
   local escaped = str:gsub("[%(%).%%%+%-%*%?%[%]%^%$]", "%%%1")
   return escaped
 end
 
---- Parse and validate a configuration item
----@param item_config table
----@return boolean, string|nil True if valid, error message if invalid
+---
+--- Parse and validate a configuration item.
+---
+---@param item_config Headup.item
+---     (|Headup.item|) Configuration item to validate.
+---
+---@return boolean, string|nil
+---     True if valid, error message if invalid.
+---@toc_entry   Validate configuration item
 Utils.validate_config_item = function(item_config)
   -- pattern (filename pattern for autocmd)
   if not item_config.pattern then
@@ -195,6 +241,7 @@ end
 --- Format content type name for display
 ---@param content string
 ---@return string
+---@private
 Utils.format_content_name = function(content)
   local names = {
     current_time = "timestamp",
@@ -207,15 +254,13 @@ Utils.format_content_name = function(content)
   return names[content] or content
 end
 
---- Get all valid content types
----@return table
-Utils.get_valid_contents = function()
-  return vim.deepcopy(VALID_CONTENTS)
-end
-
---- Convert a shell-like glob (used by autocmd patterns) to a Lua pattern
+---
+--- Convert a shell-like glob (used by autocmd patterns) to a Lua pattern.
+---
 ---@param glob string
+---
 ---@return string
+---@toc_entry   Glob to Lua pattern
 Utils.glob_to_lua_pattern = function(glob)
   local p = glob
   p = p:gsub("([%^%$%(%)%%%.%+%-%[%]])", "%%%1")
@@ -225,10 +270,17 @@ Utils.glob_to_lua_pattern = function(glob)
   return "^" .. p .. "$"
 end
 
---- Check if a filepath matches one or more globs
+---
+--- Check if a filepath matches one or more globs.
+---
 ---@param filepath string
+---     File path to check.
 ---@param patterns string|string[]|nil
+---     Glob or list of globs to match against. If nil, always returns false.
+---
 ---@return boolean
+---     True if filepath matches any of the globs.
+---@toc_entry   File exclusion matching
 Utils.path_matches = function(filepath, patterns)
   if not patterns then
     return false
@@ -247,7 +299,5 @@ Utils.path_matches = function(filepath, patterns)
   end
   return false
 end
-
--- No backward-compat aliases to keep types strict
 
 return Utils

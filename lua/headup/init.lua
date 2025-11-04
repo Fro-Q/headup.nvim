@@ -2,44 +2,67 @@
 -- File name: init.lua
 -- Author: Fro-Q
 -- Created: 2025-11-03 02:44:33
--- Last modified: 2025-11-03 18:52:39
+-- Last modified: 2025-11-04 02:44:08
 -- ------
 -- headup.nvim main module
 --]]
 
 ---@diagnostic disable: undefined-global
-require("headup.types")
+
+---
+--- Main module for headup.nvim. Provides setup and some high level functions.
+---
+---@tag Headup.core(Headup)
+---@toc_entry Core
 local utils = require("headup.utils")
 local func = require("headup.func")
 
---- 
----@class Headup Headup main module
----@field config Headup.config Current effective configuration
----@field setup fun(user_config: table|nil) Setup the plugin
----@field enable fun() Enable the plugin
----@field disable fun() Disable the plugin
----@field toggle fun() Toggle plugin enabled state
----@field update_current_buffer fun() Match and update the current buffer
----@field clear_cache fun() Clear internal caches
----@field get_config fun(): Headup.config Get current effective config
+
+---@class Headup
+---     (|Headup|): Headup main module.
+---
+---@field config Headup.config
+---     (|Headup.config|): Current effective configuration.
+---@field setup fun(user_config: table|nil)
+---     (|Headup.setup()|): Setup the plugin.
+---@field enable fun()
+---     (|Headup.enable()|): Enable the plugin.
+---@field disable fun()
+---     (|Headup.disable()|): Disable the plugin.
+---@field toggle fun()
+---     (|Headup.toggle()|): Toggle plugin enabled state.
+---@field update_current_buffer fun()
+---     (|Headup.update_current_buffer()|): Match and update the current buffer.
+---@field clear_cache fun()
+---     (|Headup.clear_cache()|): Clear internal caches.
+---@field get_config fun(): Headup.config
+---     (|Headup.get_config()|): Get current effective config. See more in:
+---       - |Headup.config|
+---@toc_entry   Headup core module
 local Headup = {} ---@diagnostic disable-line: missing-fields
 
 ---@class Headup.config
----@field enabled boolean Whether the plugin is enabled globally
----@field silent boolean Whether to suppress notification messages when
----   updating metadata
----@field time_format string|'inherit'|nil Global fallback time format for
----   current_time
----@field max_lines number|nil Global fallback for maximum number of lines to
----   scan
----@field end_pattern string|nil Global fallback Lua pattern to stop scanning
----@field exclude_pattern string|string[]|nil Global fallback filename 
----   pattern(s) to exclude
----@field configs table<number, Headup.item> List of configuration items for 
----   different file types
+---     (|Headup.config|): Configuration table for headup.nvim.
+---
+---@field enabled boolean
+---     Whether the plugin is enabled globally
+---@field silent boolean
+---     Whether to suppress notification messages when updating metadata
+---@field time_format? string|'inherit'|nil
+---     Global fallback time format for current_time
+---@field max_lines? number|nil Global fallback for maximum number of lines to scan
+---     Global fallback for maximum number of lines to scan
+---@field end_pattern? string|nil
+---     Global fallback Lua pattern to stop scanning
+---@field exclude_pattern? string|string[]|nil
+---     Global fallback filename pattern(s) to exclude
+---@field configs? table<number, Headup.item>
+---     List of configuration items for different file types. See more in:
+---       - |Headup.item|
 ---
 --- Default: ~
 ---@eval return MiniDoc.afterlines_to_code(MiniDoc.current.eval_section)
+---@toc_entry   Configuration
 Headup.config = {
   enabled = true,
   silent = true,
@@ -60,6 +83,31 @@ Headup.config = {
 }
 --minidoc_afterlines_end
 
+---@signature Headup.item
+---
+---@class Headup.item
+---     (|Headup.item|): Configuration item for specific file types.
+---
+---@field pattern string|string[]
+---     File name pattern(s) for autocmd (e.g., "*.md" or {"*.md","*.markdown"})
+---@field match_pattern string
+---     Lua pattern to find the value to update within file content
+---@field content string
+---     Type of content to update. Must be one of: "current_time", "file_size",
+---     "line_count", "file_name", "file_path", "file_path_abs". See |Headup.intro|
+---     for details. New ideas are welcome.
+---@field time_format? string|'inherit'
+---     Time format string for current_time, 'inherit' to keep original format
+---     Note that 'inherit' is buggy. Use with caution.
+---@field max_lines? number
+---     Maximum number of lines to search from the beginning
+---@field end_pattern? string|nil
+---     Optional Lua pattern; stop scanning when a line matches this (prevents
+---     over-scanning)
+---@field exclude_pattern? string|string[]|nil
+---     File name pattern(s) to exclude from processing
+---@tag Headup.item
+---@toc_entry   Each configuration item
 local default_config_items = {
   {
     pattern = "*.md",
@@ -133,14 +181,19 @@ local function _validate(cfg)
   return true, nil
 end
 
---- Setup the plugin ~
+---
+--- Setup the plugin.
 ---
 ---@usage >lua
 ---   require('headup').setup() -- Use default config
 ---   require('headup').setup({ -- Use custom config
 ---     -- Your config here
 ---   })
+---
 ---@param user_config Headup.config?
+---    User configuration table. See more in:
+---      - |Headup.config|
+---@toc_entry   Setup
 Headup.setup = function(user_config)
   local parsed = _parse(user_config)
   local ok, err = _validate(parsed)
@@ -157,7 +210,15 @@ Headup.setup = function(user_config)
   end
 end
 
---- Enable the plugin (register autocmds)
+---
+--- Core functions to help you manage the plugin.
+---
+---@tag Headup.core.functions
+---@toc_entry   Core functions
+
+---
+--- Enable the plugin. Register autocmds per config item.
+---@toc_entry     Enable the plugin
 Headup.enable = function()
   local function clear_autocmds()
     for _, group in ipairs(_autocmd_groups) do
@@ -205,7 +266,9 @@ Headup.enable = function()
   end
 end
 
---- Disable the plugin (clear autocmds)
+---
+--- Clear all autocmds created by `headup.nvim`.
+---@toc_entry     Disable the plugin
 Headup.disable = function()
   Headup.config.enabled = false
   for _, group in ipairs(_autocmd_groups) do
@@ -214,7 +277,9 @@ Headup.disable = function()
   _autocmd_groups = {}
 end
 
---- Toggle plugin enabled state
+---
+--- Toggle plugin enabled state.
+---@toc_entry     ...Or just toggle state
 Headup.toggle = function()
   local new_state = not Headup.config.enabled
   if new_state then
@@ -224,44 +289,43 @@ Headup.toggle = function()
   end
 end
 
---- Update the current buffer immediately
+---
+--- Update the current buffer immediately, ignoring caches and no-edit checks.
+--- See |Headup.clear_cache()| for more details.
+---@toc_entry     Kind of force-update
 Headup.update_current_buffer = function()
+  Headup.clear_cache()
   if not Headup.config.enabled then
     vim.notify("headup.nvim is disabled", vim.log.levels.WARN)
     return
   end
   local bufnr = vim.api.nvim_get_current_buf()
-  local filename = vim.api.nvim_buf_get_name(bufnr)
   local updated = false
 
-  for _, item in ipairs(Headup.config.configs) do
-    if utils.path_matches(filename, item.pattern) and not utils.path_matches(filename, item.exclude_pattern) then
-      local idx, match, line = func.find_match(bufnr, item)
-      if idx and match and line then
-        local new_content = func.generate_new_content(bufnr, item.content, item.time_format or "inherit", match)
-        local updated_line = line:gsub(utils.escape_pattern(match), new_content)
-        if updated_line ~= line then
-          local all_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-          all_lines[idx] = updated_line
-          vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, all_lines)
+  -- Set buf modified to true to ensure BufWritePre autocmds run
+  vim.api.nvim_set_option_value("modified", true, { buf = bufnr })
 
-          if not Headup.config.silent then
-            local content_name = utils.format_content_name and utils.format_content_name(item.content) or item.content
-            vim.notify("headup.nvim: Updated " .. content_name .. " to: " .. new_content, vim.log.levels.INFO)
-          end
-          func.cache_original(_original_content, bufnr, item, new_content, idx)
-          updated = true
-        end
-      end
-    end
-  end
+  -- HACK: Is it a hack?
+  -- Trigger a BufWritePre autocmd to update relevant metadata
+  vim.api.nvim_exec_autocmds("BufWritePre", { buffer = bufnr })
 
   if not updated then
     vim.notify("headup.nvim: No matching pattern found in current buffer", vim.log.levels.WARN)
   end
 end
 
---- Clear internal caches and notify if not silent
+---
+--- Clear internal caches.
+---
+--- Note ~
+---   - A cache is used to track original content values. It functions to
+---     prevent overwriting manual changes made by the user between automatic
+---     updates.
+---   - So clearing the cache will update the values anyway.
+---   - It's mainly used for a force update using |Headup.update_current_buffer()|
+---     to ignore previous cached values. In most cases you don't need to call
+---     this.
+---@toc_entry     Clear internal caches
 Headup.clear_cache = function()
   _original_content = {}
   if not Headup.config.silent then
@@ -269,8 +333,15 @@ Headup.clear_cache = function()
   end
 end
 
---- Return current effective config table
+---
+--- Get current effective config.
+---
+--- Note ~
+---   I don't think you need this.
+---
 ---@return Headup.config
+---    (|Headup.config|): Current effective config.
+---@toc_entry     Get current config
 Headup.get_config = function()
   return Headup.config
 end

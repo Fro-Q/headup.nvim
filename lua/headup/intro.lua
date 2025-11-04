@@ -1,10 +1,15 @@
---- *headup.nvim*
----
---- A Neovim plugin that automatically updates file header metadata when files
---- are saved.
----
---- MIT License Copyright (c) 2025 Fro-Q
+--[[
+-- File name: intro.lua
+-- Author: Fro-Q
+-- Created: 2025-11-04 00:35:48
+-- Last modified: 2025-11-04 14:44:10
+-- ------
+-- headup.nvim introduction and features
+--]]
 
+---
+--- TOC ~
+---@tag Headup.nvim
 ---@toc
 
 --- Features ~
@@ -19,7 +24,37 @@
 --- - `file_name`: The base filename of the buffer
 --- - `file_path`: File path relative to current working directory
 --- - `file_path_abs`: Absolute file path
+--- See |valid_contents| for more details.
+---
+--- Something to Note ~
+--- - Headup.nvim only updates the first matched pattern in each file. If you
+---   have multiple patterns in a single file, only the first one will be updated.
+--- - 
+---
+--- Example Usage ~
+---
+---   A general one:
+---@text >lua
+---     require("headup").setup({
+---       enabled = true,
+---       silent = false,
+---       time_format = "%Y-%m-%d %H:%M:%S",
+---       max_lines = 20,
+---       end_pattern = "\n",
+---       exclude_pattern = "*/archive/*", -- skip archived notes
+---       -- Update yaml front matter 'last_modified' in markdown files
+---       {
+---         -- pattern = {"*.md", "*.markdown"},
+---         match_pattern = "last_modified:%s*(.-)%s*$",
+---         content = "current_time",
+---       },
+---       -- Or a more general one:
+---       {
+---         pattern = "*",
+---         match_pattern = "^%s*%-%-%s*[Ll]ast[%s_%-][Mm]odified:%s(.-)%s*$",
+---         content = "current_time",
+---       },
+---     })
+---
 ---@tag Headup.intro
-
----@toc_entry
-
+---@toc_entry Introduction

@@ -1,11 +1,36 @@
-*headup.nvim*
+                                                                   *Headup.nvim*
 
-A Neovim plugin that automatically updates file header metadata when files
-are saved.
+TOC ~
+  Introduction ................................................ |Headup.intro|
+  Core ................................................. |Headup.core(Headup)|
+    Headup core module .............................................. |Headup|
+    Configuration ............................................ |Headup.config|
+    Each configuration item .................................... |Headup.item|
+    Setup ................................................... |Headup.setup()|
+    Core functions ................................... |Headup.core.functions|
+      Enable the plugin .................................... |Headup.enable()|
+      Disable the plugin .................................. |Headup.disable()|
+      ...Or just toggle state .............................. |Headup.toggle()|
+      Kind of force-update .................. |Headup.update_current_buffer()|
+      Clear internal caches ........................... |Headup.clear_cache()|
+      Get current config ............................... |Headup.get_config()|
+  Utility functions ........................................... |Headup.utils|
+    Valid contents to used in `content` field ........... |Utils.valid_contents|
+    Time formats for `time_format: "inherit"` ............. |Utils.time_formats|
+    Validate content type ......................... |Utils.is_valid_content()|
+    Hash content ...................................... |Utils.hash_content()|
+    Detect time format from string .............. |Utils.detect_time_format()|
+    Get file size .................................... |Utils.get_file_size()|
+    Escape Lua pattern special characters ........... |Utils.escape_pattern()|
+    Validate configuration item ............... |Utils.validate_config_item()|
+    Glob to Lua pattern ........................ |Utils.glob_to_lua_pattern()|
+    File exclusion matching ........................... |Utils.path_matches()|
+  Internal functions ........................................... |Headup.func|
+    Content generators table ....................... |Func.content_generators|
+    Register a new content generator! ............ |Func.register_generator()|
+    Generate new content ....................... |Func.generate_new_content()|
+  Help Wanted ........................................... |Headup.help_wanted|
 
-MIT License Copyright (c) 2025 Fro-Q
-
-  ..........................................................................
 ------------------------------------------------------------------------------
                                                                   *Headup.intro*
 Features ~
@@ -20,44 +45,95 @@ Supported Content ~
 - `file_name`: The base filename of the buffer
 - `file_path`: File path relative to current working directory
 - `file_path_abs`: Absolute file path
+See |valid_contents| for more details.
+
+Something to Note ~
+- Headup.nvim only updates the first matched pattern in each file. If you
+  have multiple patterns in a single file, only the first one will be updated.
+- 
+
+Example Usage ~
+
+  A general one:
+>lua
+    require("headup").setup({
+      enabled = true,
+      silent = false,
+      time_format = "%Y-%m-%d %H:%M:%S",
+      max_lines = 20,
+      end_pattern = "\n",
+      exclude_pattern = "*/archive/*", -- skip archived notes
+      -- Update yaml front matter 'last_modified' in markdown files
+      {
+        -- pattern = {"*.md", "*.markdown"},
+        match_pattern = "last_modified:%s*(.-)%s*$",
+        content = "current_time",
+      },
+      -- Or a more general one:
+      {
+        pattern = "*",
+        match_pattern = "^%s*%-%-%s*[Ll]ast[%s_%-][Mm]odified:%s(.-)%s*$",
+        content = "current_time",
+      },
+    })
+
 
 ------------------------------------------------------------------------------
+                                                           *Headup.core(Headup)*
+                                    `utils`
 
-==============================================================================
+Main module for headup.nvim. Provides setup and some high level functions.
+
+
 ------------------------------------------------------------------------------
                                                                         *Headup*
                                     `Headup`
-
 Class ~
-{Headup} Headup main module
+{Headup}
+    (|Headup|): Headup main module.
+
 Fields ~
-{config} `(Headup.config)` Current effective configuration
-{setup} `(fun(user_config: table|nil))` Setup the plugin
-{enable} `(fun())` Enable the plugin
-{disable} `(fun())` Disable the plugin
-{toggle} `(fun())` Toggle plugin enabled state
-{update_current_buffer} `(fun())` Match and update the current buffer
-{clear_cache} `(fun())` Clear internal caches
-{get_config} `(fun(): Headup.config)` Get current effective config
+{config} `(Headup.config)`
+    (|Headup.config|): Current effective configuration.
+{setup} `(fun(user_config: table|nil))`
+    (|Headup.setup()|): Setup the plugin.
+{enable} `(fun())`
+    (|Headup.enable()|): Enable the plugin.
+{disable} `(fun())`
+    (|Headup.disable()|): Disable the plugin.
+{toggle} `(fun())`
+    (|Headup.toggle()|): Toggle plugin enabled state.
+{update_current_buffer} `(fun())`
+    (|Headup.update_current_buffer()|): Match and update the current buffer.
+{clear_cache} `(fun())`
+    (|Headup.clear_cache()|): Clear internal caches.
+{get_config} `(fun(): Headup.config)`
+    (|Headup.get_config()|): Get current effective config. See more in:
+      - |Headup.config|
 
 ------------------------------------------------------------------------------
                                                                  *Headup.config*
                                 `Headup.config`
 Class ~
 {Headup.config}
+    (|Headup.config|): Configuration table for headup.nvim.
+
 Fields ~
-{enabled} `(boolean)` Whether the plugin is enabled globally
-{silent} `(boolean)` Whether to suppress notification messages when
-  updating metadata
-{time_format} `(string|'inherit)`'|nil Global fallback time format for
-  current_time
-{max_lines} `(number|nil)` Global fallback for maximum number of lines to
-  scan
-{end_pattern} `(string|nil)` Global fallback Lua pattern to stop scanning
-{exclude_pattern} `(string|string[]|nil)` Global fallback filename 
-  pattern(s) to exclude
-{configs} `(table<number, Headup.item>)` List of configuration items for 
-  different file types
+{enabled} `(boolean)`
+    Whether the plugin is enabled globally
+{silent} `(boolean)`
+    Whether to suppress notification messages when updating metadata
+{time_format} `(optional)` `(string|'inherit)`'|nil
+    Global fallback time format for current_time
+{max_lines} `(optional)` `(number|nil)` Global fallback for maximum number of lines to scan
+    Global fallback for maximum number of lines to scan
+{end_pattern} `(optional)` `(string|nil)`
+    Global fallback Lua pattern to stop scanning
+{exclude_pattern} `(optional)` `(string|string[]|nil)`
+    Global fallback filename pattern(s) to exclude
+{configs} `(optional)` `(table<number, Headup.item>)`
+    List of configuration items for different file types. See more in:
+      - |Headup.item|
 
 Default: ~
 >lua
@@ -80,10 +156,40 @@ Default: ~
     },
   }
 <
+
+------------------------------------------------------------------------------
+                                                                   *Headup.item*
+                                 `Headup.item`
+
+Class ~
+{Headup.item}
+    (|Headup.item|): Configuration item for specific file types.
+
+Fields ~
+{pattern} `(string|string[])`
+    File name pattern(s) for autocmd (e.g., "*.md" or {"*.md","*.markdown"})
+{match_pattern} `(string)`
+    Lua pattern to find the value to update within file content
+{content} `(string)`
+    Type of content to update. Must be one of: "current_time", "file_size",
+    "line_count", "file_name", "file_path", "file_path_abs". See |Headup.intro|
+    for details. New ideas are welcome.
+{time_format} `(optional)` `(string|'inherit)`'
+    Time format string for current_time, 'inherit' to keep original format
+    Note that 'inherit' is buggy. Use with caution.
+{max_lines} `(optional)` `(number)`
+    Maximum number of lines to search from the beginning
+{end_pattern} `(optional)` `(string|nil)`
+    Optional Lua pattern; stop scanning when a line matches this (prevents
+    over-scanning)
+{exclude_pattern} `(optional)` `(string|string[]|nil)`
+    File name pattern(s) to exclude from processing
+
 ------------------------------------------------------------------------------
                                                                 *Headup.setup()*
                          `Headup.setup`({user_config})
-Setup the plugin ~
+
+Setup the plugin.
 
 Usage ~
 >lua
@@ -91,135 +197,341 @@ Usage ~
   require('headup').setup({ -- Use custom config
     -- Your config here
   })
+
 Parameters ~
 {user_config} `(Headup.config?)`
+   User configuration table. See more in:
+     - |Headup.config|
+
+------------------------------------------------------------------------------
+                                                         *Headup.core.functions*
+
+Core functions to help you manage the plugin.
+
 
 ------------------------------------------------------------------------------
                                                                *Headup.enable()*
                                `Headup.enable`()
-Enable the plugin (register autocmds)
+
+Enable the plugin. Register autocmds per config item.
 
 ------------------------------------------------------------------------------
                                                               *Headup.disable()*
                                `Headup.disable`()
-Disable the plugin (clear autocmds)
+
+Clear all autocmds created by `headup.nvim`.
 
 ------------------------------------------------------------------------------
                                                                *Headup.toggle()*
                                `Headup.toggle`()
-Toggle plugin enabled state
+
+Toggle plugin enabled state.
 
 ------------------------------------------------------------------------------
                                                 *Headup.update_current_buffer()*
                         `Headup.update_current_buffer`()
-Update the current buffer immediately
+
+Update the current buffer immediately, ignoring caches and no-edit checks.
+See |Headup.clear_cache()| for more details.
 
 ------------------------------------------------------------------------------
                                                           *Headup.clear_cache()*
                              `Headup.clear_cache`()
-Clear internal caches and notify if not silent
+
+Clear internal caches.
+
+Note ~
+  - A cache is used to track original content values. It functions to
+    prevent overwriting manual changes made by the user between automatic
+    updates.
+  - So clearing the cache will update the values anyway.
+  - It's mainly used for a force update using |Headup.update_current_buffer()|
+    to ignore previous cached values. In most cases you don't need to call
+    this.
 
 ------------------------------------------------------------------------------
                                                            *Headup.get_config()*
                              `Headup.get_config`()
-Return current effective config table
+
+Get current effective config.
+
+Note ~
+  I don't think you need this.
+
 Return ~
 `(Headup.config)`
+   (|Headup.config|): Current effective config.
 
-
-==============================================================================
 ------------------------------------------------------------------------------
-headup.utils Utilities for headup.nvim
-Helpers for patterns, sizes, hashing, and validation.
+                                                                  *Headup.utils*
+                                    `Utils`
+
+Those functions are internal helpers for headup.nvim. In most cases,
+you won't need to interact with them directly. But who knows?
+
+
+------------------------------------------------------------------------------
+                                                          *Utils.valid_contents*
+                             `Utils.valid_contents`
+
+Useable content types for |Headup.item|.content. If you want to add more
+content types, use |Func.register_generator|.
+
+Type ~
+`(string[])`
+>lua
+  Utils.valid_contents = {
+    "current_time", -- Current time with a specified format
+    "file_size", -- File size, auto-converted to appropriate unit
+    "line_count", -- Number of lines in the file
+    "file_name", -- Base filename of the buffer
+    "file_path", -- File path relative to current working directory
+    "file_path_abs", -- Absolute file path
+  }
+<
+
+------------------------------------------------------------------------------
+                                                            *Utils.time_formats*
+                              `Utils.time_formats`
+
+Common time format patterns and their corresponding strftime formats. Used
+for detecting time format from existing timestamps when 'time_format' is
+set to "inherit".
+
+Note ~
+  - This one is so ugly. But I can't find a way to parse time formats
+    properly in Lua. |HELP_WANTED|
+  - Those area Lua patterns, not regex!
+  - Tip is DON'T use "inherit" if you can set a specific format.
+
+Type ~
+`(table<string, string>)`
+>lua
+  Utils.time_formats = {
+    -- ISO formats
+    ["%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d"] = "%Y-%m-%d %H:%M:%S",
+    ["%d%d%d%d%-%d%d%-%d%d"] = "%Y-%m-%d",
+    ["%d%d%d%d%/%d%d%/%d%d"] = "%Y/%m/%d",
+    ["%d%d%/%d%d%/%d%d%d%d"] = "%m/%d/%Y",
+    -- RFC formats
+    ["%a, %d %b %d%d%d%d %d%d:%d%d:%d%d"] = "%a, %d %b %Y %H:%M:%S",
+    -- Unix timestamp (numeric)
+    ["^%d+$"] = "timestamp",
+    -- ISO 8601
+    ["%d%d%d%d%-%d%d%-%d%dT%d%d:%d%d:%d%d"] = "%Y-%m-%dT%H:%M:%S",
+  }
+
+<
 
 ------------------------------------------------------------------------------
                                                       *Utils.is_valid_content()*
                       `Utils.is_valid_content`({content})
-Check if content type is valid
+
+Check if content type is valid. Simply checks against |Utils.valid_contents|.
+
 Parameters ~
 {content} `(string)`
+
 Return ~
 `(boolean)`
 
 ------------------------------------------------------------------------------
                                                           *Utils.hash_content()*
                         `Utils.hash_content`({content})
-Simple hash function for content change detection
+
+Simple hash function for content change detection.
+
 Parameters ~
 {content} `(string)`
+
 Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
                                                     *Utils.detect_time_format()*
                    `Utils.detect_time_format`({time_string})
+
 Detect time format from existing time string
+
 Parameters ~
 {time_string} `(string)`
+
 Return ~
-`(string|nil)` Format string or nil if not detected
+`(string|nil)`
+    Format string in strftime format if detected, or nil.
 
 ------------------------------------------------------------------------------
                                                          *Utils.get_file_size()*
                          `Utils.get_file_size`({bufnr})
-Get file size for buffer
+
+Get file size for current buffer.
+
 Parameters ~
 {bufnr} `(number)`
+    Buffer number. 0 for current buffer.
+
 Return ~
-`(string)` File size as string with units
+`(string)`
+    File size as string with units.
 
 ------------------------------------------------------------------------------
                                                         *Utils.escape_pattern()*
                          `Utils.escape_pattern`({str})
-Escape special pattern characters for Lua patterns
+
+Escape special pattern characters for Lua patterns.
+
 Parameters ~
 {str} `(string)`
+
 Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
                                                   *Utils.validate_config_item()*
                   `Utils.validate_config_item`({item_config})
-Parse and validate a configuration item
-Parameters ~
-{item_config} `(table)`
-Return ~
-`(boolean)`, string|nil True if valid, error message if invalid
 
-------------------------------------------------------------------------------
-                                                   *Utils.format_content_name()*
-                     `Utils.format_content_name`({content})
-Format content type name for display
-Parameters ~
-{content} `(string)`
-Return ~
-`(string)`
+Parse and validate a configuration item.
 
-------------------------------------------------------------------------------
-                                                    *Utils.get_valid_contents()*
-                          `Utils.get_valid_contents`()
-Get all valid content types
+Parameters ~
+{item_config} `(Headup.item)`
+    (|Headup.item|) Configuration item to validate.
+
 Return ~
-`(table)`
+`(boolean)`, string|nil
+    True if valid, error message if invalid.
 
 ------------------------------------------------------------------------------
                                                    *Utils.glob_to_lua_pattern()*
                       `Utils.glob_to_lua_pattern`({glob})
-Convert a shell-like glob (used by autocmd patterns) to a Lua pattern
+
+Convert a shell-like glob (used by autocmd patterns) to a Lua pattern.
+
 Parameters ~
 {glob} `(string)`
+
 Return ~
 `(string)`
 
 ------------------------------------------------------------------------------
                                                           *Utils.path_matches()*
                   `Utils.path_matches`({filepath}, {patterns})
-Check if a filepath matches one or more globs
+
+Check if a filepath matches one or more globs.
+
 Parameters ~
 {filepath} `(string)`
+    File path to check.
 {patterns} `(string|string[]|nil)`
+    Glob or list of globs to match against. If nil, always returns false.
+
 Return ~
 `(boolean)`
+    True if filepath matches any of the globs.
+
+------------------------------------------------------------------------------
+                                                                   *Headup.func*
+
+With a |Func.register_generator| function, you easily can add your own
+content generators without my permission(strike through).
+
+
+------------------------------------------------------------------------------
+                                                       *Func.content_generators*
+                           `Func.content_generators`
+
+Content generators table. Each generator is a function that takes a buffer
+number and an optional context table, and returns a string.
+
+Note ~
+  - You should never modify this table directly since content validation
+    won't be updated. Use |Func.register_generator| instead.
+
+Type ~
+`(table<string, fun(bufnr: integer, ctx?: { time_format?: string, old_content?: string }): string>)`
+
+------------------------------------------------------------------------------
+                                                     *Func.register_generator()*
+                 `Func.register_generator`({name}, {generator})
+
+Register a new content generator.
+
+Usage ~
+>lua
+  local func = require('headup.func')
+  func.register('my_generator', function(bufnr, ctx)
+    -- Your generation logic here
+    return "generated content"
+  end)
+
+Then in your configuration, you can use:
+>lua
+  require('headup').setup({
+    {
+      pattern = '*.txt',
+      match_pattern = 'custom:%s*(.-)%s*$',
+      content = 'my_generator',
+    }
+  })
+
+It will match lines like `custom: old_value` and replace `old_value` with
+the output of your `my_generator` function. Just works!
+
+Parameters ~
+{name} `(string)`
+{generator} `(fun(bufnr: integer, ctx?: { time_format?: string, old_content?: string }): string)`
+    Register a new content generator. See below:
+
+    Parameters ~
+    {bufnr} `(integer)`
+        Buffer number. 0 for current buffer.
+    {ctx?} `(table|nil)`
+        Optional context table with:
+        {time_format?} `(string|nil)`
+            Time format string for time-based generators.
+        {old_content?} `(string|nil)`
+            Previous matched content for "inherit" formats.
+
+    Returns ~
+    `(string)`
+        Generated content.
+
+
+------------------------------------------------------------------------------
+                                                   *Func.generate_new_content()*
+ `Func.generate_new_content`({bufnr}, {content}, {time_format}, {old_content})
+Generate new content string based on content kind. You don't have to call
+this directly.
+
+Parameters ~
+{bufnr} `(integer)`
+{content} `(string)`
+    See |Utils.valid_contents| for built-in content types, or create your
+    own with |Func.register_generator|.
+{time_format} `(string|nil)`
+    Strftime format string for time-based content. Use "inherit" to detect
+    from previous content.
+{old_content} `(string|nil)`
+    Previous matched content, used for detecting if the content has been
+    manually changed.
+
+Return ~
+`(string)`
+    Generated content string.
+
+------------------------------------------------------------------------------
+
+If you made it this far and wish to know more, I assume you want to contribute
+to the project. Feel free to open an issue or a pull request on GitHub!
+
+------------------------------------------------------------------------------
+                                                            *Headup.help_wanted*
+
+- [ ] (|Utils.time_format|): Initially I think it would be nice to have the 
+      time format inherited from existing timestamps. But I actually know
+      little about parsing time formats in Lua. So here is a ugly
+      implementation using pre-defined patterns to do the so called "inherit"
+      feature. If you know a better way to do this, please open an issue or
+      a PR. Thanks!
 
 
  vim:tw=78:ts=8:noet:ft=help:norl:

@@ -1,235 +1,168 @@
----
-last_modified: 2025-11-03 17:39:38
----
-
 # headup.nvim
 
-![Lua](https://img.shields.io/badge/Made%20with%20Lua-blueviolet.svg?style=for-the-badge&logo=lua)
+<p align="center">
 
-A Neovim plugin that automatically updates file header metadata when files are saved.
+*Automatically updates file metadata on save.*
+
+</p>
+
+## Demo
+
+https://github.com/Fro-Q/headup.nvim/raw/main/assets/headup_demo.mp4
 
 ## Features
 
-- **Automatic Updates**: Automatically updates metadata in file headers when saving
-- **Respects Manual Edits**: Won't overwrite user manual changes to metadata
-- **Configurable**: Support multiple file types with different patterns
+- Automatic updates for header metadata on write
+- Respects manual edits (won’t overwrite user changes)
+- Per-filetype rules with globs, early-stop scanning, and exclusions
 
-## Supported Content
+## Built-in supported content
 
-- `current_time`: Current timestamp
-- `file_size`: File size with automatic unit conversion (B, KB, MB, GB, TB)
-- `line_count`: Number of lines in the file
-- `file_name`: The base filename of the buffer
-- `file_path`: File path relative to current working directory
-- `file_path_abs`: Absolute file path
+- `current_time`: Current timestamp with customizable format
+- `file_size`: Humanized file size (B / KB / MB / GB / TB)
+- `line_count`: Number of lines in the buffer
+- `file_name`: Base filename
+- `file_path`: Path relative to CWD
+- `file_path_abs`: Absolute path
 
-## Installation
+See also: `:help Utils.valid_contents`.
 
-### Using [lazy.nvim](https://github.com/folke/lazy.nvim)
+## Install
+
+Using lazy.nvim
 
 ```lua
 {
   "Fro-Q/headup.nvim",
   config = function()
-    require("headup").setup({
-      -- your configuration here
-    })
+    require("headup").setup()
   end,
 }
 ```
 
-### Using [packer.nvim](https://github.com/wbthomason/packer.nvim)
+Using packer.nvim
 
 ```lua
 use {
   "Fro-Q/headup.nvim",
   config = function()
-    require("headup").setup({
-      -- your configuration here
-    })
+    require("headup").setup()
   end
 }
 ```
 
-## Configuration
+## Quick start
 
-headup.nvim uses a simplified configuration format where you pass global settings and configuration items directly in the setup table, without needing a `configs` wrapper key.
-
-### Basic Structure
+Minimal setup that updates something like `-- Last Modified: x` in Lua with current time in the specified format, stopping at the first empty line.
 
 ```lua
 require("headup").setup({
-  -- Global settings
   enabled = true,
   silent = true,
-  
-  -- Configuration items (array elements)
-  {
-    pattern = "*.md",          -- file name glob(s) for autocmd
-    match_pattern = "...",     -- Lua pattern to capture value in file content
-    content = "current_time",  -- what to write
-    -- other options...
-  },
-  {
-    pattern = {"*.py", "*.pyi"},
-    match_pattern = "...",
-    content = "current_time",
-    -- other options...
-  },
-  -- Add more configuration items as needed...
-})
-```
-
-### Default Configuration
-
-```lua
-require("headup").setup({
-  enabled = true,
-  silent = true, -- Set to false to show notifications when updating
-
-  -- Global fallbacks (used when an item doesn't set its own value)
-  time_format = "inherit",
+  time_format = "%Y-%m-%d %H:%M:%S",
   max_lines = 20,
-  end_pattern = "^---%s*$", -- Stop scanning at end of YAML front matter
-  -- exclude_pattern = "*/archive/*", -- optional global exclude
-
+  end_pattern = "^%s*$", -- stop at first empty line
+  exclude_pattern = "",
   {
-    pattern = "*.md",
-    match_pattern = "last_modified:%s*(.-)%s*$",
+    pattern = "*.lua",
+    match_pattern = "^%s*%-%-%s*[Ll]ast[%s_%-][Mm]odified:%s(.-)%s*$",
     content = "current_time",
-    -- This item will use the global fallbacks above
   },
 })
 ```
 
-### Configuration Options
+## Configuration overview
 
-#### Global Options
-- `enabled` (boolean): Whether the plugin is enabled globally (default: `true`)
-- `silent` (boolean): Whether to suppress notification messages (default: `true`)
-- `time_format` (string|"inherit"): Global fallback for time format when `content = "current_time"`
-- `max_lines` (number): Global fallback for maximum number of lines to scan from the beginning
-- `end_pattern` (string): Global fallback Lua pattern; stop scanning when matched (prevents over-scanning)
-- `exclude_pattern` (string|string[]): Global fallback filename glob(s) to exclude from processing
+- Global options (apply to all items unless overridden):
+  - `enabled` (boolean, default `true`)
+  - `silent` (boolean, default `true`)
+  - `time_format` (string|"inherit")
+  - `max_lines` (number)
+  - `end_pattern` (string, Lua pattern; early stop when matched)
+  - `exclude_pattern` (string|string[]; file globs to skip)
 
-#### Per-Config Options (as array items)
-Each configuration item should be a table with the following fields:
-- `pattern` (string|string[]): File name glob(s) for autocmd (e.g., `"*.md"` or `{ "*.md", "*.markdown" }`)
-- `match_pattern` (string): Lua pattern to capture the content to update
-- `content` (string): What to write (`"current_time"`, `"file_size"`, `"line_count"`, `"file_name"`, `"file_path"`, `"file_path_abs"`)
-- `time_format` (string): Time format string for `current_time`, use `"inherit"` to keep original format
-- `max_lines` (number): Maximum number of lines to search from the beginning (default: 20)
-- `end_pattern` (string, optional): Lua pattern that, when matched, stops scanning further lines (prevents over-scanning)
-- `exclude_pattern` (string|string[], optional): File name glob(s) to exclude from processing
+- Per-item options (each element is a rule):
+  - `pattern` (string|string[]; file globs for autocmd)
+  - `match_pattern` (string; Lua pattern to capture the value to replace)
+  - `content` (string; one of supported content types)
+  - `time_format` (string|"inherit")
+  - `max_lines` (number)
+  - `end_pattern` (string)
+  - `exclude_pattern` (string|string[])
 
-Note: For `time_format`, `max_lines`, `end_pattern`, and `exclude_pattern`, if an item doesn't provide a value, it will fall back to the corresponding global value when set.
+Note: items inherit unset values from global options (fallbacks).
 
-### Example Configurations
+## Commands and API
 
-#### Markdown with YAML Front Matter
+- `:HeadupEnable` / `:HeadupDisable` / `:HeadupToggle`
+- `:HeadupUpdate` – force update current buffer (ignores previous cache and buffer state)
+- `:HeadupClearCache` – clear internal cache
+
+Lua API (see :help Headup):
+
+- Some commands have equivalent Lua functions:
+  - `require('headup').enable()` / `disable()` / `toggle()`
+  - `require('headup').update_current_buffer()`
+  - `require('headup').clear_cache()`
+- You can register custom content generators:
+  - `require('headup.func').register_generator(name, func)`
+
+See more in `:help headup.nvim`.
+
+## Extend: custom content generators
+
+You can add your own content type by registering a generator. A generator is
+`fun(bufnr: integer, ctx?: { time_format?: string, old_content?: string }): string`.
+
+Register:
 
 ```lua
-{
-  pattern = "*.md",
-  match_pattern = "last_modified:%s*(.-)%s*$",
-  content = "current_time",
-  time_format = "inherit",
-  max_lines = 20,
-  end_pattern = "^---%s*$",
-}
+local func = require('headup.func')
+
+func.register('my_branch', function(bufnr)
+  local file = vim.api.nvim_buf_get_name(bufnr)
+  local dir = file ~= '' and vim.fn.fnamemodify(file, ':h') or vim.fn.getcwd()
+  local out = vim.fn.systemlist({ 'git', '-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD' })
+  local branch = (out and out[1]) or 'unknown'
+  return (branch or ''):gsub('%s+', '')
+end)
 ```
 
-#### Multiple File Types with Different Patterns
+Use in config:
 
 ```lua
-require("headup").setup({
-  enabled = true,
-  silent = false, -- Show notifications
-  
-  -- Markdown files
+require('headup').setup({
   {
-    pattern = {"*.md", "*.markdown"},
-    match_pattern = "last_modified:%s*(.-)%s*$",
-    content = "current_time",
-    time_format = "%Y-%m-%d %H:%M:%S",
-    max_lines = 20,
-  end_pattern = "^---%s*$",
-    exclude_pattern = "*/archive/*", -- skip archived notes
-  },
-  
-  -- Text files with file size
-  {
-    pattern = "*.txt",
-    match_pattern = "Size:%s*(.-)%s*$",
-    content = "file_size",
-    max_lines = 10,
-  },
-  
-  -- Any file type with line count
-  {
-    pattern = "*",
-    match_pattern = "Lines:%s*(.-)%s*$",
-    content = "line_count",
-    max_lines = 15,
+    pattern = '*.md',
+    match_pattern = 'branch:%s*(.-)%s*$',
+    content = 'my_branch',
   },
 })
 ```
 
-## Commands
-
-- `:HeadupEnable` / `:HeadupDisable` / `:HeadupToggle` — control plugin state
-- `:HeadupUpdate` — manually update current buffer
-- `:HeadupClearCache` — clear internal cache
-- `:HeadupShowConfig` — show current effective configuration (formatted table)
-
-The plugin provides the following commands:
-
-- `:HeadupEnable` - Enable the plugin
-- `:HeadupDisable` - Disable the plugin  
-- `:HeadupToggle` - Toggle plugin on/off
-- `:HeadupUpdate` - Manually update metadata in current buffer
-- `:HeadupClearCache` - Clear internal cache
-
-## How It Works
-
-1. **File Loading**: When a file is opened, the plugin scans for patterns and caches the matched content
-2. **Content Detection**: On save, it checks if the file content has actually changed
-3. **Manual Edit Respect**: If you manually edited the metadata, the plugin won't overwrite it
-4. **Smart Update**: Only updates metadata when file content changed but metadata wasn't manually modified
-5. **Cache Update**: Updates the internal cache after successful updates
-
-## Example Usage
-
-For a Markdown file with YAML front matter:
-
-```markdown
----
-title: My Document
-last_modified: 2024-01-01 12:00:00
----
-
-# My Document
-
-Content here...
-```
-
-When you edit and save the file, `last_modified` will automatically update to the current timestamp while preserving the original time format.
-
-## Silent Mode
-
-By default, the plugin operates silently. To see notifications when metadata is updated, set `silent = false` in your configuration:
+More templates:
 
 ```lua
-require("headup").setup({
-  silent = false, -- Show notifications
-  -- other config...
-})
+-- Uppercase previous value
+func.register('uppercase', function(_, ctx)
+  return ((ctx and ctx.old_content) or ''):upper()
+end)
+
+-- SHA256 of current buffer
+func.register('file_sha256', function(bufnr)
+  local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), '\n')
+  return vim.fn.sha256(text)
+end)
 ```
 
-When `silent = false`, you'll see notifications like:
-- "headup.nvim: Auto-updated timestamp to: 2024-11-02 15:30:45"
-- "headup.nvim: Updated file size to: 2.1 KB"
+And share your useful generators in [Discussions](https://github.com/Fro-Q/headup.nvim/discussions)!
+
+## Help
+
+There is a most detailed help file included with the plugin. See in `:help headup.nvim`.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+<p align="center">
+MIT - Copyright (c) 2025 Fro-Q
+</p>

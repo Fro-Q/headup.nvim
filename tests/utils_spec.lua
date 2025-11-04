@@ -1,7 +1,7 @@
 -- File name: utils_spec.lua
 -- Author: Fro-Q
 -- Created: 2025-11-03 09:59:55
--- Last modified: 2025-11-03 10:01:04
+-- Last modified: 2025-11-04 00:31:25
 -- ------
 -- headup.nvim utils module tests
 --]]
@@ -49,8 +49,8 @@ T["validate_config_item: valid config passes"] = function()
   assert(error_msg == nil)
 end
 
-T["get_valid_contents: includes known types"] = function()
-  local list = Utils.get_valid_contents()
+T["valid_contents: includes known types"] = function()
+  local list = Utils.valid_contents
   assert(type(list) == 'table')
   assert(#list >= 3)
 end
